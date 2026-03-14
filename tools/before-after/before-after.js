@@ -241,4 +241,35 @@ async function submitToGitHub() {
         canvas.width = 1600; canvas.height = 800; 
         const ctx = canvas.getContext('2d');
         ctx.fillStyle = '#fff'; ctx.fillRect(0,0,1600,800);
-        ctx.
+        ctx.drawImage(document.getElementById('beforeImg1'), 0, 0, 800, 800);
+        ctx.filter = `brightness(${document.getElementById('brightnessSlider').value}%) contrast(${document.getElementById('contrastSlider').value}%)`;
+        ctx.drawImage(document.getElementById('afterImg1'), 800, 0, 800, 800);
+
+        const response = await fetch('/api/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                patientName: name,
+                metadataBase64: btoa(JSON.stringify(metadata, null, 2)),
+                beforeBase64: beforeSrc,
+                afterBase64: afterSrc,
+                combinedBase64: canvas.toDataURL('image/jpeg', 0.8)
+            })
+        });
+
+        if (response.ok) {
+            alert("Successfully saved to Database!");
+            closeSaveModal();
+            // Reset UI slightly
+            document.getElementById('patientName').value = '';
+            dbLoaded = false; // Force refresh next time DB tab is opened
+        } else {
+            const err = await response.json();
+            throw new Error(err.error || "Failed to save.");
+        }
+    } catch (error) {
+        alert("Error: " + error.message);
+    } finally {
+        btn.innerText = "Save to Database"; btn.disabled = false;
+    }
+}
