@@ -3,14 +3,11 @@ let dbLoaded = false;
 let patientsList = [];
 
 function switchTab(tabName) {
-    // 1. Update active tab UI
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
     
-    // 2. CLEAR THE WORKSPACE (Fixes the overlapping data issue)
     clearWorkspace();
     
-    // 3. Show requested tab
     if(tabName === 'upload') {
         document.querySelector('.tab-btn:nth-child(1)').classList.add('active');
         document.getElementById('uploadTab').classList.add('active');
@@ -21,12 +18,10 @@ function switchTab(tabName) {
     }
 }
 
-// Reset everything to default state
 function clearWorkspace() {
     beforeSrc = null;
     afterSrc = null;
 
-    // Reset File Inputs & Previews
     document.getElementById('beforeInput').value = '';
     document.getElementById('afterInput').value = '';
     document.getElementById('beforePreview').style.display = 'none';
@@ -34,18 +29,15 @@ function clearWorkspace() {
     document.getElementById('beforePreview').src = '';
     document.getElementById('afterPreview').src = '';
 
-    // Reset Database Dropdown & Metadata
     document.getElementById('patientSelect').value = '';
     document.getElementById('patientMeta').style.display = 'none';
     document.getElementById('metaDetails').innerHTML = '';
 
-    // Hide Viewer Sections & Save Button
     document.getElementById('var1').style.display = 'none';
     document.getElementById('var2').style.display = 'none';
     document.getElementById('var3').style.display = 'none';
     document.getElementById('saveContainer').style.display = 'none';
 
-    // Clear Viewer Images & CSS Filters
     const viewerImages = ['beforeImg1', 'afterImg1', 'beforeImg2', 'afterImg2', 'beforeImg3', 'afterImg3'];
     viewerImages.forEach(id => {
         const img = document.getElementById(id);
@@ -53,7 +45,6 @@ function clearWorkspace() {
         img.style.filter = 'none'; 
     });
 
-    // Reset Sliders
     document.getElementById('brightnessSlider').value = 100;
     document.getElementById('contrastSlider').value = 100;
     document.getElementById('brightVal').innerText = 100;
@@ -87,13 +78,12 @@ async function fetchDatabase() {
 
 async function loadPatient(folderId) {
     if(!folderId) {
-        clearWorkspace(); // Clear if they select the empty "-- Select Patient --" option
+        clearWorkspace(); 
         return;
     }
     const patient = patientsList.find(p => p.id === folderId);
     if(!patient) return;
 
-    // Load Metadata to show tags
     try {
         const metaRes = await fetch(patient.metadataUrl);
         const meta = await metaRes.json();
@@ -196,15 +186,23 @@ function setImages(bSrc, aSrc) {
     ['beforeImg1', 'beforeImg2', 'beforeImg3'].forEach(id => document.getElementById(id).src = bSrc);
     ['afterImg1', 'afterImg2', 'afterImg3'].forEach(id => document.getElementById(id).src = aSrc);
     
-    document.getElementById('var1').style.display = 'block';
-    document.getElementById('var2').style.display = 'block';
-    document.getElementById('var3').style.display = 'block';
+    // Check which tab is active to determine layout
+    const isUploadTab = document.getElementById('uploadTab').classList.contains('active');
     
-    if(document.getElementById('uploadTab').classList.contains('active')) {
+    if(isUploadTab) {
+        // Show everything for new uploads
+        document.getElementById('var1').style.display = 'block';
+        document.getElementById('var2').style.display = 'block';
+        document.getElementById('var3').style.display = 'block';
         document.getElementById('saveContainer').style.display = 'block';
+        setTimeout(autoAdjustLighting, 200); 
+    } else {
+        // Hide Lighting Match (var2) and Save button for database viewing
+        document.getElementById('var1').style.display = 'block';
+        document.getElementById('var2').style.display = 'none';
+        document.getElementById('var3').style.display = 'block';
+        document.getElementById('saveContainer').style.display = 'none';
     }
-
-    setTimeout(autoAdjustLighting, 200); 
 }
 
 // --- VIEWER CONTROLS ---
@@ -272,13 +270,39 @@ async function submitToGitHub() {
             dateSaved: new Date().toISOString()
         };
 
+        // Create combined canvas
         const canvas = document.createElement('canvas');
         canvas.width = 1600; canvas.height = 800; 
         const ctx = canvas.getContext('2d');
+        
+        // White background
         ctx.fillStyle = '#fff'; ctx.fillRect(0,0,1600,800);
+        
+        // Draw images
         ctx.drawImage(document.getElementById('beforeImg1'), 0, 0, 800, 800);
         ctx.filter = `brightness(${document.getElementById('brightnessSlider').value}%) contrast(${document.getElementById('contrastSlider').value}%)`;
         ctx.drawImage(document.getElementById('afterImg1'), 800, 0, 800, 800);
+
+        // Reset filter before drawing text so the text doesn't get adjusted
+        ctx.filter = 'none';
+
+        // --- DRAW "BEFORE" AND "AFTER" LABELS ---
+        function drawLabel(text, x, y) {
+            // Draw a semi-transparent black background box for contrast
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+            ctx.fillRect(x - 90, y - 30, 180, 60);
+
+            // Draw crisp white text
+            ctx.fillStyle = '#ffffff';
+            ctx.font = 'bold 32px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, x, y);
+        }
+
+        // Place labels at the bottom center of each image half
+        drawLabel("BEFORE", 400, 740); // 400 is the center of the left 800px
+        drawLabel("AFTER", 1200, 740); // 1200 is the center of the right 800px
 
         const response = await fetch('/api/save', {
             method: 'POST',
@@ -297,14 +321,13 @@ async function submitToGitHub() {
             closeSaveModal();
             document.getElementById('patientName').value = '';
             
-            // Clear tags arrays and UI
             selectedDiseases = [];
             selectedTreatments = [];
             document.getElementById('diseaseTagContainer').querySelectorAll('.tag-pill').forEach(el => el.remove());
             document.getElementById('treatmentTagContainer').querySelectorAll('.tag-pill').forEach(el => el.remove());
 
             dbLoaded = false; 
-            switchTab('database'); // Jump to database tab to see the new entry
+            switchTab('database'); 
         } else {
             const err = await response.json();
             throw new Error(err.error || "Failed to save.");
