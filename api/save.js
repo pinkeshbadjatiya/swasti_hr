@@ -6,7 +6,7 @@ export default async function handler(req, res) {
     const { patientName, metadataBase64, beforeImgUrl, afterImgUrl, combinedImgUrl, updatedDiseasesBase64, updatedTreatmentsBase64 } = req.body;
     
     const GITHUB_TOKEN = process.env.GITHUB_TOKEN; 
-    const REPO = 'your-username/your-repo'; // UPDATE THIS
+    const REPO = 'pinkeshbadjatiya/swasti_hr'; // UPDATE THIS
 
     const slug = patientName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     const folderName = `${Date.now()}-${slug}`;
