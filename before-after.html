@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Before & After Tool</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="before-after.css">
+</head>
+<body>
+
+    <div class="tool-container">
+        
+        <div class="top-nav">
+            <a href="index.html" class="btn-back">← Back to Home</a>
+        </div>
+
+        <h1 class="header-title">Before & After Viewer</h1>
+        
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('upload')">Upload NEW</button>
+            <button class="tab-btn" onclick="switchTab('database')" id="dbTabBtn">Patient Database</button>
+        </div>
+
+        <div id="uploadTab" class="tab-content active">
+            <div class="controls-panel">
+                <div class="upload-group">
+                    <label><strong>1. Upload Before Image</strong></label>
+                    <input type="file" id="beforeInput" accept="image/*">
+                    <img id="beforePreview" class="preview-img" alt="Before">
+                </div>
+                <div class="upload-group">
+                    <label><strong>2. Upload After Image</strong></label>
+                    <input type="file" id="afterInput" accept="image/*">
+                    <img id="afterPreview" class="preview-img" alt="After">
+                </div>
+            </div>
+        </div>
+
+        <div id="databaseTab" class="tab-content">
+            <div class="controls-panel">
+                <div class="upload-group" style="flex: 1;">
+                    <label><strong>Select Saved Patient Case</strong></label>
+                    <select id="patientSelect" onchange="loadPatient(this.value)">
+                        <option value="">-- Select Patient --</option>
+                    </select>
+                </div>
+                <div class="upload-group" id="patientMeta" style="flex: 2; display: none; background: #f8f9fa; padding: 15px; border-radius: 5px;">
+                    <h4 style="margin:0 0 10px 0;">Case Details</h4>
+                    <div id="metaDetails" style="font-size: 0.95rem; color: #555; line-height: 1.5;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="resultsWrapper">
+            <div class="viewer-section" id="var1">
+                <h3>1. Default Side-by-Side</h3>
+                <div class="side-by-side">
+                    <img id="beforeImg1" src="" alt="Before" crossorigin="anonymous">
+                    <img id="afterImg1" src="" alt="After" crossorigin="anonymous">
+                </div>
+            </div>
+
+            <div class="viewer-section" id="var2">
+                <h3>2. Side-by-Side (Lighting Match)</h3>
+                <div class="lighting-controls">
+                    <div>
+                        <label>Brightness: <span id="brightVal">100</span>%</label>
+                        <input type="range" id="brightnessSlider" min="50" max="150" value="100" style="width: 100%;">
+                    </div>
+                    <div>
+                        <label>Contrast: <span id="contrastVal">100</span>%</label>
+                        <input type="range" id="contrastSlider" min="50" max="150" value="100" style="width: 100%;">
+                    </div>
+                    <button class="btn-auto" onclick="autoAdjustLighting()">Auto Adjust</button>
+                </div>
+                <div class="side-by-side">
+                    <img id="beforeImg2" src="" alt="Before" crossorigin="anonymous">
+                    <img id="afterImg2" src="" alt="After" crossorigin="anonymous">
+                </div>
+            </div>
+
+            <div class="viewer-section" id="var3">
+                <h3>3. Interactive Wipe Slider</h3>
+                <div class="comparison-slider">
+                    <img id="afterImg3" class="img-after" src="" alt="After" crossorigin="anonymous">
+                    <img id="beforeImg3" class="img-before" src="" alt="Before" crossorigin="anonymous">
+                    <div class="slider-line" id="sliderLine"></div>
+                    <input type="range" min="0" max="100" value="50" class="slider-control" id="wipeSlider">
+                </div>
+            </div>
+        </div>
+
+        <div class="save-container" id="saveContainer">
+            <button class="btn-save" onclick="openSaveModal()">Save Case to Database</button>
+        </div>
+    </div>
+
+    <div class="modal" id="saveModal">
+        <div class="modal-content">
+            <h2 style="margin-top: 0;">Save Patient Data</h2>
+            
+            <div class="form-group">
+                <label>Patient Name / ID</label>
+                <input type="text" id="patientName" class="form-control" placeholder="e.g. John Doe" autocomplete="off" data-1p-ignore>
+            </div>
+
+            <div class="form-group">
+                <label>Disease Tags</label>
+                <div class="tag-container" id="diseaseTagContainer">
+                    <input type="text" id="diseaseTagInput" class="tag-input" list="diseaseList" placeholder="Type..." autocomplete="off" data-1p-ignore>
+                    <datalist id="diseaseList">
+                        <option value="Acne"></option>
+                        <option value="Rosacea"></option>
+                        <option value="Melasma"></option>
+                        <option value="Hyperpigmentation"></option>
+                        <option value="Scarring"></option>
+                    </datalist>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Treatment Tags</label>
+                <div class="tag-container" id="treatmentTagContainer">
+                    <input type="text" id="treatmentTagInput" class="tag-input" list="treatmentList" placeholder="Type..." autocomplete="off" data-1p-ignore>
+                    <datalist id="treatmentList">
+                        <option value="Chemical Peel"></option>
+                        <option value="Laser Resurfacing"></option>
+                        <option value="Microneedling"></option>
+                        <option value="Botox"></option>
+                        <option value="Dermal Fillers"></option>
+                    </datalist>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="closeSaveModal()">Cancel</button>
+                <button class="btn-submit" onclick="submitToGitHub()" id="submitBtn">Commit & Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="before-after.js"></script>
+</body>
+</html>
