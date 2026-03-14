@@ -310,9 +310,30 @@ function addLabelToImage(base64Src, text, filterStr = 'none') {
     });
 }
 
+// --- IMGBB UPLOAD HELPER ---
+async function uploadToImgBB(base64Str) {
+    // ImgBB API requires just the raw base64 data, without the prefix
+    const cleanBase64 = base64Str.split(',')[1] || base64Str;
+    const formData = new FormData();
+    formData.append('image', cleanBase64);
+
+    const res = await fetch('https://api.imgbb.com/1/upload?key=d8d15f40d721c0253e0f4a0eeb98f76f', {
+        method: 'POST',
+        body: formData
+    });
+    
+    const data = await res.json();
+    if(data.success) {
+        return data.data.url; // Returns the direct ImgBB URL
+    } else {
+        throw new Error('ImgBB upload failed: ' + data.error.message);
+    }
+}
+
+// --- UPDATED SAVE LOGIC ---
 async function submitToGitHub() {
     const btn = document.getElementById('submitBtn');
-    btn.innerText = "Saving..."; btn.disabled = true;
+    btn.innerText = "Uploading to ImgBB..."; btn.disabled = true;
 
     try {
         const name = document.getElementById('patientName').value || 'Anonymous';
@@ -323,14 +344,14 @@ async function submitToGitHub() {
 
         const metadata = { patientName: name, diseaseTags: selectedDiseases, treatmentTags: selectedTreatments, dateSaved: new Date().toISOString() };
 
-        // 2. Generate Individual Labelled Images
+        // 2. Generate Labelled Images (Full Quality, No Compression!)
         const filterApplied = `brightness(${document.getElementById('brightnessSlider').value}%) contrast(${document.getElementById('contrastSlider').value}%)`;
         const labeledBeforeBase64 = await addLabelToImage(beforeSrc, "BEFORE");
         const labeledAfterBase64 = await addLabelToImage(afterSrc, "AFTER", filterApplied);
 
-        // 3. Generate Combined Image (with labels below)
+        // 3. Generate Combined Image
         const canvas = document.createElement('canvas');
-        canvas.width = 1600; canvas.height = 860; // Extra 60px for the text bar at bottom
+        canvas.width = 1600; canvas.height = 860; 
         const ctx = canvas.getContext('2d');
         ctx.fillStyle = '#fff'; ctx.fillRect(0,0,1600,860);
         
@@ -343,16 +364,25 @@ async function submitToGitHub() {
         ctx.fillText("BEFORE", 400, 830);
         ctx.fillText("AFTER", 1200, 830);
 
-        // 4. Send all files and merged tags to backend
+        const combinedBase64 = canvas.toDataURL('image/jpeg', 0.95);
+
+        // 4. UPLOAD TO IMGBB FIRST
+        const beforeUrl = await uploadToImgBB(labeledBeforeBase64);
+        const afterUrl = await uploadToImgBB(labeledAfterBase64);
+        const combinedUrl = await uploadToImgBB(combinedBase64);
+
+        btn.innerText = "Committing to GitHub...";
+
+        // 5. Send URLs and metadata to Vercel
         const response = await fetch('/api/save', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 patientName: name,
                 metadataBase64: btoa(JSON.stringify(metadata, null, 2)),
-                beforeBase64: labeledBeforeBase64,
-                afterBase64: labeledAfterBase64,
-                combinedBase64: canvas.toDataURL('image/jpeg', 0.8),
+                beforeImgUrl: beforeUrl,
+                afterImgUrl: afterUrl,
+                combinedImgUrl: combinedUrl,
                 updatedDiseasesBase64: btoa(JSON.stringify(mergedDiseases, null, 2)),
                 updatedTreatmentsBase64: btoa(JSON.stringify(mergedTreatments, null, 2))
             })
@@ -367,7 +397,6 @@ async function submitToGitHub() {
             document.getElementById('diseaseTagContainer').querySelectorAll('.tag-pill').forEach(el => el.remove());
             document.getElementById('treatmentTagContainer').querySelectorAll('.tag-pill').forEach(el => el.remove());
 
-            // Refresh tags locally to avoid fetching again immediately
             globalDiseaseTags = mergedDiseases;
             globalTreatmentTags = mergedTreatments;
             populateDatalist('diseaseList', globalDiseaseTags);
