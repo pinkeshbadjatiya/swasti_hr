@@ -1,22 +1,66 @@
-// --- TABS LOGIC ---
+// --- TABS & STATE LOGIC ---
 let dbLoaded = false;
 let patientsList = [];
 
 function switchTab(tabName) {
+    // 1. Update active tab UI
     document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
     
+    // 2. CLEAR THE WORKSPACE (Fixes the overlapping data issue)
+    clearWorkspace();
+    
+    // 3. Show requested tab
     if(tabName === 'upload') {
         document.querySelector('.tab-btn:nth-child(1)').classList.add('active');
         document.getElementById('uploadTab').classList.add('active');
-        // Only show save button if images exist and we are on upload tab
-        document.getElementById('saveContainer').style.display = (beforeSrc && afterSrc) ? 'block' : 'none';
     } else {
         document.getElementById('dbTabBtn').classList.add('active');
         document.getElementById('databaseTab').classList.add('active');
-        document.getElementById('saveContainer').style.display = 'none'; // Hide save when viewing DB
         if(!dbLoaded) fetchDatabase();
     }
+}
+
+// Reset everything to default state
+function clearWorkspace() {
+    beforeSrc = null;
+    afterSrc = null;
+
+    // Reset File Inputs & Previews
+    document.getElementById('beforeInput').value = '';
+    document.getElementById('afterInput').value = '';
+    document.getElementById('beforePreview').style.display = 'none';
+    document.getElementById('afterPreview').style.display = 'none';
+    document.getElementById('beforePreview').src = '';
+    document.getElementById('afterPreview').src = '';
+
+    // Reset Database Dropdown & Metadata
+    document.getElementById('patientSelect').value = '';
+    document.getElementById('patientMeta').style.display = 'none';
+    document.getElementById('metaDetails').innerHTML = '';
+
+    // Hide Viewer Sections & Save Button
+    document.getElementById('var1').style.display = 'none';
+    document.getElementById('var2').style.display = 'none';
+    document.getElementById('var3').style.display = 'none';
+    document.getElementById('saveContainer').style.display = 'none';
+
+    // Clear Viewer Images & CSS Filters
+    const viewerImages = ['beforeImg1', 'afterImg1', 'beforeImg2', 'afterImg2', 'beforeImg3', 'afterImg3'];
+    viewerImages.forEach(id => {
+        const img = document.getElementById(id);
+        img.src = '';
+        img.style.filter = 'none'; 
+    });
+
+    // Reset Sliders
+    document.getElementById('brightnessSlider').value = 100;
+    document.getElementById('contrastSlider').value = 100;
+    document.getElementById('brightVal').innerText = 100;
+    document.getElementById('contrastVal').innerText = 100;
+    document.getElementById('wipeSlider').value = 50;
+    document.getElementById('sliderLine').style.left = '50%';
+    document.getElementById('beforeImg3').style.clipPath = 'inset(0 50% 0 0)';
 }
 
 // --- DATABASE LOGIC ---
@@ -30,7 +74,6 @@ async function fetchDatabase() {
         
         select.innerHTML = '<option value="">-- Select Patient --</option>';
         patientsList.forEach(p => {
-            // Extract a readable name from folder (e.g., 17094392-john-doe -> John Doe)
             let name = p.id.split('-').slice(1).join(' ');
             if(!name) name = p.id;
             select.innerHTML += `<option value="${p.id}">${name.toUpperCase()}</option>`;
@@ -43,7 +86,10 @@ async function fetchDatabase() {
 }
 
 async function loadPatient(folderId) {
-    if(!folderId) return;
+    if(!folderId) {
+        clearWorkspace(); // Clear if they select the empty "-- Select Patient --" option
+        return;
+    }
     const patient = patientsList.find(p => p.id === folderId);
     if(!patient) return;
 
@@ -60,7 +106,6 @@ async function loadPatient(folderId) {
         `;
     } catch(e) { console.log("No metadata found"); }
 
-    // Set images directly from GitHub Raw URLs
     setImages(patient.beforeUrl, patient.afterUrl);
 }
 
@@ -83,7 +128,6 @@ function setupTagInput(inputId, containerId, arrayName) {
             this.value = '';
         }
     });
-    // Also trigger on datalist selection
     input.addEventListener('change', function(e) {
         const val = this.value.trim();
         if(val && !arrayName.includes(val)) {
@@ -95,9 +139,7 @@ function setupTagInput(inputId, containerId, arrayName) {
 }
 
 function renderTags(container, input, array) {
-    // Remove existing pills
     container.querySelectorAll('.tag-pill').forEach(el => el.remove());
-    // Add current pills
     array.forEach(tag => {
         const pill = document.createElement('div');
         pill.className = 'tag-pill';
@@ -107,7 +149,6 @@ function renderTags(container, input, array) {
 }
 
 function removeTag(tag, element) {
-    // Determine which array it belongs to based on container
     const containerId = element.parentElement.parentElement.id;
     if(containerId === 'diseaseTagContainer') {
         selectedDiseases = selectedDiseases.filter(t => t !== tag);
@@ -119,7 +160,6 @@ function removeTag(tag, element) {
 
 setupTagInput('diseaseTagInput', 'diseaseTagContainer', selectedDiseases);
 setupTagInput('treatmentTagInput', 'treatmentTagContainer', selectedTreatments);
-
 
 // --- IMAGE HANDLING LOGIC ---
 const beforeInput = document.getElementById('beforeInput');
@@ -135,14 +175,12 @@ function handleImageUpload(event, type) {
             if (type === 'before') {
                 document.getElementById('beforePreview').src = src;
                 document.getElementById('beforePreview').style.display = 'block';
+                beforeSrc = src;
             } else {
                 document.getElementById('afterPreview').src = src;
                 document.getElementById('afterPreview').style.display = 'block';
+                afterSrc = src;
             }
-            
-            // Only process if both are uploaded
-            if (type === 'before') beforeSrc = src;
-            else afterSrc = src;
             
             if(beforeSrc && afterSrc) setImages(beforeSrc, afterSrc);
         }
@@ -162,7 +200,6 @@ function setImages(bSrc, aSrc) {
     document.getElementById('var2').style.display = 'block';
     document.getElementById('var3').style.display = 'block';
     
-    // Show save button ONLY if we are in upload mode
     if(document.getElementById('uploadTab').classList.contains('active')) {
         document.getElementById('saveContainer').style.display = 'block';
     }
@@ -183,7 +220,7 @@ function getImageStats(imgEl) {
             totalLuminance += (0.299 * imageData[i]) + (0.587 * imageData[i+1]) + (0.114 * imageData[i+2]);
         }
         return { avgLuminance: totalLuminance / 10000 };
-    } catch(e) { return {avgLuminance: 128}; } // Fallback for CORS issues when loading from DB
+    } catch(e) { return {avgLuminance: 128}; } 
 }
 
 function autoAdjustLighting() {
@@ -228,7 +265,6 @@ async function submitToGitHub() {
     try {
         const name = document.getElementById('patientName').value || 'Anonymous';
         
-        // Construct metadata using the Tag Arrays
         const metadata = {
             patientName: name,
             diseaseTags: selectedDiseases,
@@ -236,7 +272,6 @@ async function submitToGitHub() {
             dateSaved: new Date().toISOString()
         };
 
-        // Create combined canvas (using hidden target dimensions)
         const canvas = document.createElement('canvas');
         canvas.width = 1600; canvas.height = 800; 
         const ctx = canvas.getContext('2d');
@@ -260,9 +295,16 @@ async function submitToGitHub() {
         if (response.ok) {
             alert("Successfully saved to Database!");
             closeSaveModal();
-            // Reset UI slightly
             document.getElementById('patientName').value = '';
-            dbLoaded = false; // Force refresh next time DB tab is opened
+            
+            // Clear tags arrays and UI
+            selectedDiseases = [];
+            selectedTreatments = [];
+            document.getElementById('diseaseTagContainer').querySelectorAll('.tag-pill').forEach(el => el.remove());
+            document.getElementById('treatmentTagContainer').querySelectorAll('.tag-pill').forEach(el => el.remove());
+
+            dbLoaded = false; 
+            switchTab('database'); // Jump to database tab to see the new entry
         } else {
             const err = await response.json();
             throw new Error(err.error || "Failed to save.");
@@ -270,6 +312,6 @@ async function submitToGitHub() {
     } catch (error) {
         alert("Error: " + error.message);
     } finally {
-        btn.innerText = "Save to Database"; btn.disabled = false;
+        btn.innerText = "Commit & Save"; btn.disabled = false;
     }
 }
