@@ -8,7 +8,7 @@ export default async function handler(req, res) {
     
     // Pull the token from your secure environment variables
     const GITHUB_TOKEN = process.env.GITHUB_TOKEN; 
-    const REPO = 'pinkeshbadjatiya/SwastiHR'; // Hardcode your repo here
+    const REPO = 'pinkeshbadjatiya/swasti_hr'; // Hardcode your repo here
 
     const slug = patientName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     const folderName = `${Date.now()}-${slug}`;
