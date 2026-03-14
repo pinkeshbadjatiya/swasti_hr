@@ -20,6 +20,7 @@
         <div class="tabs">
             <button class="tab-btn active" onclick="switchTab('upload')">Upload NEW</button>
             <button class="tab-btn" onclick="switchTab('database')" id="dbTabBtn">Patient Database</button>
+            <button class="tab-btn" onclick="switchTab('gallery')">View All Patients</button>
         </div>
 
         <div id="uploadTab" class="tab-content active">
@@ -48,6 +49,19 @@
                 <div class="upload-group" id="patientMeta" style="flex: 2; display: none; background: #f8f9fa; padding: 15px; border-radius: 5px;">
                     <h4 style="margin:0 0 10px 0;">Case Details</h4>
                     <div id="metaDetails" style="font-size: 0.95rem; color: #555; line-height: 1.5;"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="galleryTab" class="tab-content">
+            <div class="controls-panel" style="display: block;">
+                <h3 style="margin-top: 0; color: var(--primary);">Patient Gallery</h3>
+                <div id="galleryGrid" class="gallery-grid">
+                    </div>
+                <div class="pagination" id="paginationControls">
+                    <button class="page-btn" id="prevPage" onclick="changePage(-1)">← Previous</button>
+                    <span id="pageIndicator" style="font-weight: bold; font-size: 0.9rem;">Page 1</span>
+                    <button class="page-btn" id="nextPage" onclick="changePage(1)">Next →</button>
                 </div>
             </div>
         </div>
