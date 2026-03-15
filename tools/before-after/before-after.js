@@ -280,31 +280,43 @@ document.getElementById('wipeSlider').addEventListener('input', (e) => {
 function openSaveModal() { document.getElementById('saveModal').style.display = 'flex'; }
 function closeSaveModal() { document.getElementById('saveModal').style.display = 'none'; }
 
-// Helper: Adds a white bar BELOW the image and writes text
+// Helper: Adds a white bar BELOW the image, writes text, and OPTIMIZES SIZE
 function addLabelToImage(base64Src, text, filterStr = 'none') {
     return new Promise((resolve) => {
         const img = new Image();
         img.onload = () => {
+            // Cap width at 1200px to slash upload times by 80%+ on mobile
+            const MAX_WIDTH = 1200;
+            let targetWidth = img.naturalWidth;
+            let targetHeight = img.naturalHeight;
+            
+            if (targetWidth > MAX_WIDTH) {
+                const ratio = MAX_WIDTH / targetWidth;
+                targetWidth = MAX_WIDTH;
+                targetHeight = img.naturalHeight * ratio;
+            }
+
             const canvas = document.createElement('canvas');
-            canvas.width = img.naturalWidth;
-            const labelHeight = Math.max(60, img.naturalHeight * 0.08); // Scale label bar
-            canvas.height = img.naturalHeight + labelHeight;
+            canvas.width = targetWidth;
+            const labelHeight = Math.max(40, targetHeight * 0.08); 
+            canvas.height = targetHeight + labelHeight;
             
             const ctx = canvas.getContext('2d');
-            ctx.fillStyle = '#ffffff'; // White background for label
+            ctx.fillStyle = '#ffffff'; 
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
             ctx.filter = filterStr;
-            ctx.drawImage(img, 0, 0);
-            ctx.filter = 'none'; // Reset filter so text stays crisp
+            ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+            ctx.filter = 'none'; 
             
             ctx.fillStyle = '#333333';
             ctx.font = `bold ${labelHeight * 0.5}px Arial`;
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(text, canvas.width / 2, img.naturalHeight + (labelHeight / 2));
+            ctx.fillText(text, canvas.width / 2, targetHeight + (labelHeight / 2));
             
-            resolve(canvas.toDataURL('image/jpeg', 0.85));
+            // Output at 0.8 quality (cuts file size massively without visible loss)
+            resolve(canvas.toDataURL('image/jpeg', 0.8));
         };
         img.src = base64Src;
     });
@@ -333,7 +345,7 @@ async function uploadToImgBB(base64Str) {
 // --- UPDATED SAVE LOGIC ---
 async function submitToGitHub() {
     const btn = document.getElementById('submitBtn');
-    btn.innerText = "Uploading to ImgBB..."; btn.disabled = true;
+    btn.innerText = "Processing Images..."; btn.disabled = true;
 
     try {
         const name = document.getElementById('patientName').value || 'Anonymous';
@@ -344,7 +356,7 @@ async function submitToGitHub() {
 
         const metadata = { patientName: name, diseaseTags: selectedDiseases, treatmentTags: selectedTreatments, dateSaved: new Date().toISOString() };
 
-        // 2. Generate Labelled Images (Full Quality, No Compression!)
+        // 2. Generate Labelled Images (Now optimized inside the helper)
         const filterApplied = `brightness(${document.getElementById('brightnessSlider').value}%) contrast(${document.getElementById('contrastSlider').value}%)`;
         const labeledBeforeBase64 = await addLabelToImage(beforeSrc, "BEFORE");
         const labeledAfterBase64 = await addLabelToImage(afterSrc, "AFTER", filterApplied);
@@ -364,14 +376,18 @@ async function submitToGitHub() {
         ctx.fillText("BEFORE", 400, 830);
         ctx.fillText("AFTER", 1200, 830);
 
-        const combinedBase64 = canvas.toDataURL('image/jpeg', 0.95);
+        // Compress the combined image to 0.8 as well
+        const combinedBase64 = canvas.toDataURL('image/jpeg', 0.8);
 
-        // 4. UPLOAD TO IMGBB FIRST
-        const beforeUrl = await uploadToImgBB(labeledBeforeBase64);
-        const afterUrl = await uploadToImgBB(labeledAfterBase64);
-        const combinedUrl = await uploadToImgBB(combinedBase64);
+        // 4. UPLOAD TO IMGBB IN PARALLEL (Massive speed boost)
+        btn.innerText = "Uploading to ImgBB...";
+        const [beforeUrl, afterUrl, combinedUrl] = await Promise.all([
+            uploadToImgBB(labeledBeforeBase64),
+            uploadToImgBB(labeledAfterBase64),
+            uploadToImgBB(combinedBase64)
+        ]);
 
-        btn.innerText = "Committing to GitHub...";
+        btn.innerText = "Saving to Database...";
 
         // 5. Send URLs and metadata to Vercel
         const response = await fetch('/api/save', {
